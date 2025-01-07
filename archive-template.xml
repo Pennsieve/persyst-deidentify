@@ -1,0 +1,72 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Persyst version="2024.09.27">
+    <Key name="Archive">
+        <Key name="Settings">
+            <Value name="progX">1066</Value>
+            <Value name="progY">839</Value>
+            <Value name="directory">"$OUTPUT_DIRECTORY"</Value>
+            <Value name="filename">"$NEW_FILE_NAME"</Value>
+            <Value name="gap">1</Value>
+            <Value name="periodic">0</Value>
+            <Value name="period">60</Value>
+            <Value name="save period">5</Value>
+            <Value name="fill gaps">0</Value>
+            <Value name="montage data">0</Value>
+            <Value name="snapshot data">0</Value>
+            <Value name="use password">0</Value>
+            <Value name="password">""</Value>
+            <Value name="output format">0</Value>
+            <Value name="multi records">0</Value>
+            <Value name="mode">0</Value>
+            <Value name="compress">0</Value>
+            <Value name="compress value">64</Value>
+            <Value name="screen_x">1032</Value>
+            <Value name="screen_y">619</Value>
+            <Value name="always on top">1</Value>
+            <Value name="movie is audio mono">1</Value>
+            <Value name="movie is audio exclude">0</Value>
+            <Value name="movie is match source">0</Value>
+            <Value name="movie is video monochrome">0</Value>
+            <Value name="movie audio resolution">16</Value>
+            <Value name="video codec">"Microsoft MPEG-4 Video Codec V2"</Value>
+            <Value name="audio codec">"PCM"</Value>
+            <Value name="32bit">1</Value>
+            <Value name="ExportEntireRecord">1</Value>
+            <Value name="RemoveVEye">0</Value>
+            <Value name="RemoveLEye">0</Value>
+            <Value name="FileType">"PersystLayout (*.lay)|*.lay|"</Value>
+            <Value name="ApplyAR">0</Value>
+            <Value name="Deindentify">1</Value>
+            <Value name="ExportEntireVideo">0</Value>
+            <Value name="ApplyAROnlyIfAvailable">0</Value>
+        </Key>
+        <Key name="Filters">0
+        </Key>
+        <Key name="Channels">
+            <Value name="1">"Fp1-Ref,0,1"</Value>
+            <Value name="2">"Fp2-Ref,1,1"</Value>
+            <Value name="3">"F7-Ref,2,1"</Value>
+            <Value name="4">"F3-Ref,3,1"</Value>
+            <Value name="5">"Fz-Ref,4,1"</Value>
+            <Value name="6">"F4-Ref,5,1"</Value>
+            <Value name="7">"F8-Ref,6,1"</Value>
+            <Value name="8">"T3-Ref,7,1"</Value>
+            <Value name="9">"C3-Ref,8,1"</Value>
+            <Value name="10">"Cz-Ref,9,1"</Value>
+            <Value name="11">"C4-Ref,10,1"</Value>
+            <Value name="12">"T4-Ref,11,1"</Value>
+            <Value name="13">"T5-Ref,12,1"</Value>
+            <Value name="14">"P3-Ref,13,1"</Value>
+            <Value name="15">"Pz-Ref,14,1"</Value>
+            <Value name="16">"P4-Ref,15,1"</Value>
+            <Value name="17">"T6-Ref,16,1"</Value>
+            <Value name="18">"O1-Ref,17,1"</Value>
+            <Value name="19">"O2-Ref,18,1"</Value>
+            <Value name="20">"A1-Ref,19,1"</Value>
+            <Value name="21">"A2-Ref,20,1"</Value>
+            <Value name="22">"T2-Ref,21,1"</Value>
+            <Value name="23">"T1-Ref,22,1"</Value>
+            <Value name="24">"ECG-Ref,23,1"</Value>
+        </Key>
+    </Key>
+</Persyst>
