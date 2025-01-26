@@ -3,16 +3,15 @@ import sys
 import csv
 import uuid
 import subprocess
-
-import pdb
+from datetime import datetime
 
 # CSV indicies
-DATE_TIME = 0
-DURATION = 1
-FIRST_NAME = 2
-LAST_NAME = 3
-PATIENT_ID = 4
-PATH = 5
+DATE_TIME = 'Test Date'
+DURATION = 'Duration'
+FIRST_NAME = 'First Name'
+LAST_NAME = 'Last Name'
+PATIENT_ID = 'Patient ID'
+PATH = 'File Name With Path'
 
 TEMPLATE_SUBSTITUTION_STRING = "$NEW_FILE_NAME"
 OUTPUT_SUBSTITUTION_STRING = "$OUTPUT_DIRECTORY"
@@ -20,9 +19,7 @@ PSCLI_DIRECTORY = r"C:\Program Files (x86)\Persyst\Insight"
 
 seen_patient_ids = {}
 
-
-
-CSV_HEADERS = ["date_time","eeg_duration","first_name","last_name","patient_id","orignal_eeg_name","new_name"]
+CSV_HEADERS = ["new_name","first_name","last_name","patient_id","date_time","eeg_duration","orignal_eeg_name","runtime"]
 
 def main():
     """
@@ -31,24 +28,38 @@ def main():
     Script requires an input CSV, and output directory and optionally a path to an xml template as arguments
     If no xml template path is specified it is assumed that there is a file named `archive-template.xml` in the directory the script is running from
     """
-    if len(sys.argv) < 2:
-        print("Usage: python persyst_deidentify.py <input_CSV> <output_directory> [xml_template_path]")
-        sys.exit(1)
+
+    if not os.path.isfile(PSCLI_DIRECTORY +'\PSCLI.exe' ):
+        print(f"Persyst not found in {PSCLI_DIRECTORY}. Exiting")
+        input()
+        sys.exit()
+
+    if len(sys.argv) == 1:
+       csv_path = getUserInput("Please enter complete file path to CSV: ", "file")
+       output_base = getUserInput("Please enter output path to save de-identified files: ", "directory")
+        
+    elif len(sys.argv) > 1:
+        # Get input arguments
+        csv_path = sys.argv[1]
+        output_base = sys.argv[2]
+        
+        if not os.path.isfile(csv_path) or not os.path.isdir(output_base):
+            print("Usage: python persyst_deidentify.py <input_CSV> <output_directory> [xml_template_path]")
+            sys.exit(1)
 
     # Add PSCLI directory to the PATH for this run
     os.environ["PATH"] += os.pathsep + PSCLI_DIRECTORY
 
-    # Get input arguments
-    csv_path = sys.argv[1]
-    output_base = sys.argv[2]
+    exe_dir = os.path.dirname(os.path.abspath(__file__))
+    exe_dir = os.getcwd()
+    key_path = os.path.join(exe_dir, r'archive-template.xml')
+    xml_template_path = key_path
 
-    # Use provided XML template path or fall back to default in script directory
-    # Assumes template will be in same folder as this script
-    xml_template_path = sys.argv[3] if len(sys.argv) > 3 else os.path.join(os.path.dirname(__file__), "archive-template.xml")
+
 
     print(f"CSV input: {csv_path}")
     print(f"Output path: {output_base}")
-    print(f"XML template: {csv_path}")
+    print(f"XML template: {xml_template_path}")
 
     if not os.path.exists(xml_template_path):
         print(f"XML template not found at {xml_template_path}")
@@ -59,7 +70,7 @@ def main():
     write_to_csv(CSV_HEADERS,os.path.join(output_base, "errors.csv") )
     # Open the CSV input file
     with open(csv_path, mode='r') as file:
-        csv_reader = csv.reader(file)
+        csv_reader = csv.DictReader(file,delimiter='\t')
 
         # Loop through each row in the CSV file
         for row in csv_reader:
@@ -85,8 +96,9 @@ def main():
 
             temp_xml_file = os.path.join(output_base, f"{encoded_file_name}-config.xml")
             output_location = os.path.join(output_base, folder)
+            current_datetime = datetime.now()
 
-            csv_payload = [row_date_time,eeg_duration,eeg_first_name,eeg_last_name, eeg_patient_id, eeg_path,encoded_file_name if file_counter=="" else f"{encoded_file_name}_{file_counter}"]
+            csv_payload = [encoded_file_name if file_counter=="" else f"{encoded_file_name}_{file_counter}",eeg_first_name,eeg_last_name, eeg_patient_id,row_date_time,eeg_duration, eeg_path,current_datetime]
 
             try:
                 os.mkdir(output_location)
@@ -130,6 +142,7 @@ def main():
                 print("done writing CSV")
                 print(result.stderr)
             os.remove(temp_xml_file)
+    input("Converstion complete. See output folder for results. \nHit enter or close this window")
 
 def genShortUUID(length=7):
     """
@@ -154,6 +167,19 @@ def write_to_csv(data, file_path):
 
         # Write the data
         writer.writerow(data)
+
+def getUserInput(prompt: str, path_type: str) -> str:
+    while True:
+        path = input(prompt)
+        
+        if path_type == "directory" and os.path.isdir(path):
+            print(f"Valid directory: {path}")
+            return path
+        elif path_type == "file" and os.path.isfile(path):
+            print(f"Valid file: {path}")
+            return path
+        else:
+            print(f"Invalid {path_type}. Please try again.")
 
 
 main()
