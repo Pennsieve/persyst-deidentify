@@ -13,9 +13,9 @@ additional_files = [(archive_template, r'archive-template.xml')]
 executables = [Executable('main.py',base=None, icon=icon)]
 
 setup(
-    name='CHOP de-identifier',
+    name='SEED de-identify and convert',
     version='1.0',
-    description='De-identifies persyst eeg files',
+    description='De-identifies convert BDF toEDF files',
     executables=executables,
     options={'build_exe': {'include_files': additional_files}},
 )
