@@ -29,7 +29,7 @@ def main():
     If no xml template path is specified it is assumed that there is a file named `archive-template.xml` in the directory the script is running from
     """
 
-    if not os.path.isfile(PSCLI_DIRECTORY +'\PSCLI.exe' ):
+    if not os.path.isfile(PSCLI_DIRECTORY +'\\PSCLI.exe' ):
         print(f"Persyst not found in {PSCLI_DIRECTORY}. Exiting")
         input()
         sys.exit()
@@ -118,7 +118,7 @@ def main():
                         rewrite_name = encoded_file_name
                     else:
                         rewrite_name = f"{encoded_file_name}-{file_counter}"
-                    modified_line = line.replace(TEMPLATE_SUBSTITUTION_STRING, f"{rewrite_name}.lay")
+                    modified_line = line.replace(TEMPLATE_SUBSTITUTION_STRING, f"{rewrite_name}.edf")
                     modified_line = modified_line.replace(OUTPUT_SUBSTITUTION_STRING, output_location)
                     output_file.write(modified_line)
         
@@ -126,6 +126,7 @@ def main():
             pscli_command = [
                 "PSCLI.exe",                       # PSCLI.exe
                 f'/SourceFile={eeg_path}',   # Input file
+                '/FileType=BDF',
                 '/Archive',                       # Archive option
                 f'/Options={temp_xml_file}'       # options file
             ]
