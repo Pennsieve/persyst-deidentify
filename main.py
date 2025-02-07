@@ -15,6 +15,8 @@ FIRST_NAME = 'First Name'
 LAST_NAME = 'Last Name'
 PATIENT_ID = 'Patient ID'
 PATH = 'File Name With Path'
+DOB = 'DOB'
+DAY_COUNTER = 7
 
 TEMPLATE_SUBSTITUTION_STRING = "$NEW_FILE_NAME"
 OUTPUT_SUBSTITUTION_STRING = "$OUTPUT_DIRECTORY"
@@ -22,7 +24,28 @@ PSCLI_DIRECTORY = r"C:\Program Files (x86)\Persyst\Insight"
 
 seen_patient_ids = {}
 
-CSV_HEADERS = ["new_name","first_name","last_name","patient_id","date_time","eeg_duration","orignal_eeg_name","runtime"]
+#  Public output CSV headers
+PUBLIC_CSV_HEADERS = [
+    "new_name",
+    "age_in_days_at_time_of_eeg", # Test Date - DOB
+    "eeg_start_time", # Test date time
+    "eeg_duration",
+    "date_of_csv_creation", 
+]
+
+# Private ouput CSV headers
+PRIVATE_CSV_HEADERS = [
+        "new_name",
+        "age_in_days_at_time_of_eeg", # Test Date - DOB
+        "eeg_start_time", # Test Date time
+        "eeg_duration",
+        "original_eeg_date_time" #Test Date
+        "first_name",
+        "last_name",
+        "patient_id",
+        "orignal_eeg_name",
+        "csv_creation_date",
+]
 
 def main():
     
@@ -71,8 +94,8 @@ def main():
         sys.exit(1)
 
 
-    write_to_csv(CSV_HEADERS,os.path.join(output_base, "full-report.csv") )
-    write_to_csv(CSV_HEADERS,os.path.join(output_base, "errors.csv") )
+    write_to_csv(PRIVATE_CSV_HEADERS,os.path.join(output_base, "full-report-private.csv") )
+    write_to_csv(PRIVATE_CSV_HEADERS,os.path.join(output_base, "errors.csv") )
 
     inputs = {}
 
@@ -97,27 +120,32 @@ def main():
             eeg_last_name = row[LAST_NAME]
             eeg_patient_id = row[PATIENT_ID]
             eeg_path = row [PATH]
+            dob = row [DOB]
+            
 
             if eeg_patient_id in inputs.keys():    
-                two_days_before = None
-                two_days_after = None
+                dates_before = None
+                days_after = None
                 if inputs[eeg_patient_id] != None:            
                     date_format = "%Y.%m.%d"
-                    row_date, _ = row_date_time.split()
-                    row_date_time = datetime.strptime(row_date, date_format)
-                    search_date = datetime.strptime(inputs[eeg_patient_id], date_format)
-                    
-                    two_days_before = search_date - timedelta(days=2)
-                    two_days_after = search_date + timedelta(days=2)
+                    test_date, test_time = row_date_time.split()
+                    datef = datetime.strptime(test_date, date_format)
+                    search_datef = datetime.strptime(inputs[eeg_patient_id], date_format)
+                    dobf = datetime.strptime(dob,"%m/%d/%y")
 
-                if two_days_before <= row_date_time <= two_days_after or search_date == datetime.strptime("1111.11.11", date_format) :
+                    age_in_days = (datef - dobf).days
+                    
+                    dates_before = search_datef - timedelta(days=0)
+                    days_after = search_datef + timedelta(days=DAY_COUNTER)
+
+                if dates_before <= datef <= days_after or search_datef == datetime.strptime("1111.11.11", date_format) :
 
                     file_counter = ""
                     if eeg_patient_id in seen_patient_ids:
                         seen_patient_ids[eeg_patient_id]['count']+=1
                         file_counter = seen_patient_ids[eeg_patient_id]['count']
                         folder = seen_patient_ids[eeg_patient_id]['filename']
-                        encoded_file_name = f"{ seen_patient_ids[eeg_patient_id]['filename']}"
+                        encoded_file_name = seen_patient_ids[eeg_patient_id]['filename']
                     else:
                         # never seen before patient ID
                         seen_patient_ids[eeg_patient_id] = {'filename': genShortUUID() , 'count': 1} 
@@ -126,9 +154,10 @@ def main():
 
                     temp_xml_file = os.path.join(output_base, f"{encoded_file_name}-config.xml")
                     output_location = os.path.join(output_base, folder)
-                    current_datetime = datetime.now()
+                    creation_date = datetime.now()
 
-                    csv_payload = [encoded_file_name if file_counter=="" else f"{encoded_file_name}_{file_counter}",eeg_first_name,eeg_last_name, eeg_patient_id,row_date_time,eeg_duration, eeg_path,current_datetime]
+                    private_csv_payload = [encoded_file_name if file_counter=="" else f"{encoded_file_name}_{file_counter}", age_in_days ,test_time, eeg_duration, row_date_time, eeg_first_name, eeg_last_name, eeg_patient_id, eeg_path, creation_date]
+                    public_csv_payload = [encoded_file_name if file_counter=="" else f"{encoded_file_name}_{file_counter}", age_in_days ,test_time, eeg_duration, creation_date]
 
                     try:
                         os.mkdir(output_location)
@@ -139,7 +168,9 @@ def main():
                     if os.path.exists(os.path.join(output_location, f"{encoded_file_name}.csv")):
                         pass # do not write header
                     else:
-                        write_to_csv(CSV_HEADERS,os.path.join(output_location, f"{encoded_file_name}.csv") )
+                        write_to_csv(PRIVATE_CSV_HEADERS,os.path.join(output_location, f"{encoded_file_name}_private.csv") )
+                        write_to_csv(PUBLIC_CSV_HEADERS,os.path.join(output_location, f"{encoded_file_name}_public.csv") )
+                        
 
                     # Read XML template, replace $ with layFileName, and write to temp XML file
                     with open(xml_template_path, 'r') as template_file, open(temp_xml_file, 'w') as output_file:
@@ -162,13 +193,14 @@ def main():
 
                     result = subprocess.run(pscli_command, capture_output=True, text=True)
                     if result.returncode == 0:
-                        write_to_csv(csv_payload,os.path.join(output_base, "full-report.csv") )
-                        write_to_csv(csv_payload,os.path.join(output_location, f"{encoded_file_name}.csv") )
+                        write_to_csv(private_csv_payload,os.path.join(output_base, "full-report-private.csv") )
+                        write_to_csv(private_csv_payload,os.path.join(output_location, f"{encoded_file_name}_private.csv") )
+                        write_to_csv(public_csv_payload,os.path.join(output_location, f"{encoded_file_name}_public.csv") )
                         print(result.stdout)
                         print("Successfully Archived")
                     else:
                         print(f"Failure on archive of: {eeg_path}")
-                        write_to_csv(csv_payload,os.path.join(output_base, "errors.csv") )
+                        write_to_csv(private_csv_payload,os.path.join(output_base, "errors.csv") )
                         print("done writing CSV")
                         print(result.stderr)
                     os.remove(temp_xml_file)
