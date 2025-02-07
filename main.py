@@ -19,7 +19,7 @@ PSCLI_DIRECTORY = r"C:\Program Files (x86)\Persyst\Insight"
 
 seen_patient_ids = {}
 
-CSV_HEADERS = ["new_name","first_name","last_name","patient_id","date_time","eeg_duration","orignal_eeg_name","runtime"]
+CSV_HEADERS = ["new_name","patient_id","date_time","eeg_duration","runtime"]
 
 def main():
     """
@@ -70,7 +70,7 @@ def main():
     write_to_csv(CSV_HEADERS,os.path.join(output_base, "errors.csv") )
     # Open the CSV input file
     with open(csv_path, mode='r') as file:
-        csv_reader = csv.DictReader(file,delimiter='\t')
+        csv_reader = csv.DictReader(file,delimiter=',')
 
         # Loop through each row in the CSV file
         for row in csv_reader:
@@ -98,7 +98,7 @@ def main():
             output_location = os.path.join(output_base, folder)
             current_datetime = datetime.now()
 
-            csv_payload = [encoded_file_name if file_counter=="" else f"{encoded_file_name}_{file_counter}",eeg_first_name,eeg_last_name, eeg_patient_id,row_date_time,eeg_duration, eeg_path,current_datetime]
+            csv_payload = [encoded_file_name if file_counter=="" else f"{encoded_file_name}_{file_counter}", eeg_patient_id,row_date_time,eeg_duration,current_datetime]
 
             try:
                 os.mkdir(output_location)
