@@ -165,10 +165,15 @@ def main():
                         print(f"Directory '{output_location}' already exists.")
 
                     # write CSV header
-                    if os.path.exists(os.path.join(output_location, f"{encoded_file_name}.csv")):
+                    if os.path.exists(os.path.join(output_location, f"{encoded_file_name}_private.csv")):
                         pass # do not write header
                     else:
                         write_to_csv(PRIVATE_CSV_HEADERS,os.path.join(output_location, f"{encoded_file_name}_private.csv") )
+
+                    # write CSV header
+                    if os.path.exists(os.path.join(output_location, f"{encoded_file_name}_public.csv")):
+                        pass # do not write header
+                    else:
                         write_to_csv(PUBLIC_CSV_HEADERS,os.path.join(output_location, f"{encoded_file_name}_public.csv") )
                         
 
