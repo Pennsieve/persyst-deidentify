@@ -39,7 +39,7 @@ PRIVATE_CSV_HEADERS = [
         "age_in_days_at_time_of_eeg", # Test Date - DOB
         "eeg_start_time", # Test Date time
         "eeg_duration",
-        "original_eeg_date_time" #Test Date
+        "original_eeg_date_time", #Test Date
         "first_name",
         "last_name",
         "patient_id",
@@ -128,9 +128,10 @@ def main():
                 days_after = None
                 if inputs[eeg_patient_id] != None:            
                     date_format = "%Y.%m.%d"
+                    input_format = "%m/%d/%Y"
                     test_date, test_time = row_date_time.split()
                     datef = datetime.strptime(test_date, date_format)
-                    search_datef = datetime.strptime(inputs[eeg_patient_id], date_format)
+                    search_datef = datetime.strptime(inputs[eeg_patient_id], input_format)
                     dobf = datetime.strptime(dob,"%m/%d/%y")
 
                     age_in_days = (datef - dobf).days
@@ -138,7 +139,7 @@ def main():
                     dates_before = search_datef - timedelta(days=0)
                     days_after = search_datef + timedelta(days=DAY_COUNTER)
 
-                if dates_before <= datef <= days_after or search_datef == datetime.strptime("1111.11.11", date_format) :
+                if dates_before <= datef <= days_after or search_datef == datetime.strptime("11/11/1111", input_format) :
 
                     file_counter = ""
                     if eeg_patient_id in seen_patient_ids:
@@ -156,8 +157,8 @@ def main():
                     output_location = os.path.join(output_base, folder)
                     creation_date = datetime.now()
 
-                    private_csv_payload = [encoded_file_name if file_counter=="" else f"{encoded_file_name}_{file_counter}", age_in_days ,test_time, eeg_duration, row_date_time, eeg_first_name, eeg_last_name, eeg_patient_id, eeg_path, creation_date]
-                    public_csv_payload = [encoded_file_name if file_counter=="" else f"{encoded_file_name}_{file_counter}", age_in_days ,test_time, eeg_duration, creation_date]
+                    private_csv_payload = [encoded_file_name if file_counter=="" else f"{encoded_file_name}_{file_counter}", age_in_days, test_time, eeg_duration, row_date_time, eeg_first_name, eeg_last_name, eeg_patient_id, eeg_path, creation_date]
+                    public_csv_payload = [encoded_file_name if file_counter=="" else f"{encoded_file_name}_{file_counter}", age_in_days, test_time, eeg_duration, creation_date]
 
                     try:
                         os.mkdir(output_location)
@@ -192,9 +193,14 @@ def main():
                     pscli_command = [
                         "PSCLI.exe",                       # PSCLI.exe
                         f'/SourceFile={eeg_path}',   # Input file
+                        '/FileType=XLTEK ',
                         '/Archive',                       # Archive option
                         f'/Options={temp_xml_file}'       # options file
                     ]
+
+                    # PSCLI.exe /SourceFile="ENTERED PATH" /Archive / Options ="TEMP XML FILE" 
+
+                    print(pscli_command)
 
                     result = subprocess.run(pscli_command, capture_output=True, text=True)
                     if result.returncode == 0:
@@ -208,7 +214,7 @@ def main():
                         write_to_csv(private_csv_payload,os.path.join(output_base, "errors.csv") )
                         print("done writing CSV")
                         print(result.stderr)
-                    os.remove(temp_xml_file)
+                    # os.remove(temp_xml_file)
     input("Converstion complete. See output folder for results. \nHit enter or close this window")
 
 def genShortUUID(length=7):
