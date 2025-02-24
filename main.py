@@ -19,7 +19,7 @@ PSCLI_DIRECTORY = r"C:\Program Files (x86)\Persyst\Insight"
 
 seen_patient_ids = {}
 
-CSV_HEADERS = ["new_name","patient_id","date_time","eeg_duration","runtime"]
+CSV_HEADERS = ["patient_id","date_time","eeg_duration","runtime"]
 
 def main():
     """
@@ -82,23 +82,21 @@ def main():
             eeg_patient_id = row[PATIENT_ID]
             eeg_path = row [PATH]
 
+            encoded_file_name = eeg_patient_id
+
             file_counter = ""
             if eeg_patient_id in seen_patient_ids:
                 seen_patient_ids[eeg_patient_id]['count']+=1
                 file_counter = seen_patient_ids[eeg_patient_id]['count']
-                folder = seen_patient_ids[eeg_patient_id]['filename']
-                encoded_file_name = f"{ seen_patient_ids[eeg_patient_id]['filename']}"
             else:
                 # never seen before patient ID
                 seen_patient_ids[eeg_patient_id] = {'filename': genShortUUID() , 'count': 1} 
-                encoded_file_name = seen_patient_ids[eeg_patient_id]['filename']
-                folder = seen_patient_ids[eeg_patient_id]['filename']
 
             temp_xml_file = os.path.join(output_base, f"{encoded_file_name}-config.xml")
-            output_location = os.path.join(output_base, folder)
+            output_location = os.path.join(output_base, encoded_file_name)
             current_datetime = datetime.now()
 
-            csv_payload = [encoded_file_name if file_counter=="" else f"{encoded_file_name}_{file_counter}", eeg_patient_id,row_date_time,eeg_duration,current_datetime]
+            csv_payload = [ eeg_patient_id,row_date_time,eeg_duration,current_datetime]
 
             try:
                 os.mkdir(output_location)
