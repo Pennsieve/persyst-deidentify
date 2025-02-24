@@ -63,7 +63,14 @@ def main():
 
     if len(sys.argv) == 1:
        csv_path = getUserInput("Please enter complete file path to CSV: ", "file")
+
        output_base = getUserInput("Please enter output path to save de-identified files: ", "directory")
+
+       private_files_path = output_base.rstrip("\\") + "_private"
+       if not os.path.exists(private_files_path):
+           os.mkdir(private_files_path)
+
+       print(f"Private files will output to: {private_files_path}")
         
     elif len(sys.argv) > 1:
         # Get input arguments
@@ -78,7 +85,6 @@ def main():
     os.environ["PATH"] += os.pathsep + PSCLI_DIRECTORY
     documents_path = Path.home() / "Documents"
 
-    exe_dir = os.path.dirname(os.path.abspath(__file__))
     exe_dir = os.getcwd()
     key_path = os.path.join(exe_dir, r'archive-template.xml')
     xml_template_path = key_path
@@ -87,14 +93,14 @@ def main():
 
     print(f"CSV input: {csv_path}")
     print(f"Output path: {output_base}")
-    print(f"XML template: {xml_template_path}")
+    print(f"XML template: {xml_template_path}\n")
 
     if not os.path.exists(xml_template_path):
         print(f"XML template not found at {xml_template_path}")
         sys.exit(1)
 
 
-    write_to_csv(PRIVATE_CSV_HEADERS,os.path.join(output_base, "full-report-private.csv") )
+    write_to_csv(PRIVATE_CSV_HEADERS,os.path.join(private_files_path, "full-report-private.csv") )
     write_to_csv(PRIVATE_CSV_HEADERS,os.path.join(output_base, "errors.csv") )
 
     inputs = {}
@@ -166,10 +172,10 @@ def main():
                         print(f"Directory '{output_location}' already exists.")
 
                     # write CSV header
-                    if os.path.exists(os.path.join(output_location, f"{encoded_file_name}_private.csv")):
+                    if os.path.exists(os.path.join(private_files_path, f"{encoded_file_name}_private.csv")):
                         pass # do not write header
                     else:
-                        write_to_csv(PRIVATE_CSV_HEADERS,os.path.join(output_location, f"{encoded_file_name}_private.csv") )
+                        write_to_csv(PRIVATE_CSV_HEADERS,os.path.join(private_files_path, f"{encoded_file_name}_private.csv") )
 
                     # write CSV header
                     if os.path.exists(os.path.join(output_location, f"{encoded_file_name}_public.csv")):
@@ -200,12 +206,10 @@ def main():
 
                     # PSCLI.exe /SourceFile="ENTERED PATH" /Archive / Options ="TEMP XML FILE" 
 
-                    print(pscli_command)
-
                     result = subprocess.run(pscli_command, capture_output=True, text=True)
                     if result.returncode == 0:
-                        write_to_csv(private_csv_payload,os.path.join(output_base, "full-report-private.csv") )
-                        write_to_csv(private_csv_payload,os.path.join(output_location, f"{encoded_file_name}_private.csv") )
+                        write_to_csv(private_csv_payload,os.path.join(private_files_path, "full-report-private.csv") )
+                        write_to_csv(private_csv_payload,os.path.join(private_files_path, f"{encoded_file_name}_private.csv") )
                         write_to_csv(public_csv_payload,os.path.join(output_location, f"{encoded_file_name}_public.csv") )
                         print(result.stdout)
                         print("Successfully Archived")
@@ -214,8 +218,9 @@ def main():
                         write_to_csv(private_csv_payload,os.path.join(output_base, "errors.csv") )
                         print("done writing CSV")
                         print(result.stderr)
-                    # os.remove(temp_xml_file)
-    input("Converstion complete. See output folder for results. \nHit enter or close this window")
+                    
+                    os.remove(temp_xml_file)
+    input("Converstion complete. See output folder for results. \nHit enter or close this window\n")
 
 def genShortUUID(length=7):
     """
@@ -252,6 +257,9 @@ def getUserInput(prompt: str, path_type: str) -> str:
             print(f"Valid file: {path}")
             return path
         else:
+            if path_type == "directory":
+                os.mkdir(path)
+                return path
             print(f"Invalid {path_type}. Please try again.")
 
 

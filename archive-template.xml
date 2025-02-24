@@ -23,13 +23,6 @@
             <Value name="screen_x">1032</Value>
             <Value name="screen_y">619</Value>
             <Value name="always on top">1</Value>
-            <Value name="movie is audio mono">1</Value>
-            <Value name="movie is audio exclude">0</Value>
-            <Value name="movie is match source">0</Value>
-            <Value name="movie is video monochrome">0</Value>
-            <Value name="movie audio resolution">16</Value>
-            <Value name="video codec">"Microsoft MPEG-4 Video Codec V2"</Value>
-            <Value name="audio codec">"PCM"</Value>
             <Value name="32bit">1</Value>
             <Value name="ExportEntireRecord">1</Value>
             <Value name="RemoveVEye">0</Value>
