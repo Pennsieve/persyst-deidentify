@@ -17,5 +17,11 @@ setup(
     version='1.0',
     description='De-identifies convert BDF toEDF files',
     executables=executables,
-    options={'build_exe': {'include_files': additional_files}},
+    options={
+        'build_exe': 
+        {
+            'include_files': additional_files,
+            "packages": ["os", "sys","uuid","subprocess","datetime","pathlib"],
+        }
+    },
 )

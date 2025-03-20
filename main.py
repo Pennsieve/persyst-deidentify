@@ -18,6 +18,10 @@ PATH = 'File Name With Path'
 DOB = 'DOB'
 DAY_COUNTER = 7
 
+INPUT_STUDY_ID = 0
+INPUT_PATIENT_ID = 1
+INPUT_DATE = 2
+
 TEMPLATE_SUBSTITUTION_STRING = "$NEW_FILE_NAME"
 OUTPUT_SUBSTITUTION_STRING = "$OUTPUT_DIRECTORY"
 PSCLI_DIRECTORY = r"C:\Program Files (x86)\Persyst\Insight"
@@ -108,9 +112,8 @@ def main():
     with open(f"{documents_path}\\input.csv", newline="") as csvfile:
         reader = csv.reader(csvfile)
         for row in reader:
-            key = row[0]
-            value = row[1]
-            inputs[key] = value
+            key = row[INPUT_PATIENT_ID]
+            inputs[key] = [row[INPUT_STUDY_ID], row[INPUT_DATE]]
 
 
     # Open the CSV input file
@@ -137,7 +140,7 @@ def main():
                     input_format = "%m/%d/%Y"
                     test_date, test_time = row_date_time.split()
                     datef = datetime.strptime(test_date, date_format)
-                    search_datef = datetime.strptime(inputs[eeg_patient_id], input_format)
+                    search_datef = datetime.strptime(inputs[eeg_patient_id][1], input_format)
                     dobf = datetime.strptime(dob,"%m/%d/%y")
 
                     age_in_days = (datef - dobf).days
@@ -155,7 +158,7 @@ def main():
                         encoded_file_name = seen_patient_ids[eeg_patient_id]['filename']
                     else:
                         # never seen before patient ID
-                        seen_patient_ids[eeg_patient_id] = {'filename': genShortUUID() , 'count': 1} 
+                        seen_patient_ids[eeg_patient_id] = {'filename': f'{inputs[eeg_patient_id][0]}_{genShortUUID()}' , 'count': 1} 
                         encoded_file_name = seen_patient_ids[eeg_patient_id]['filename']
                         folder = seen_patient_ids[eeg_patient_id]['filename']
 
@@ -220,6 +223,7 @@ def main():
                         print(result.stderr)
                     
                     os.remove(temp_xml_file)
+    remove_video_files(output_base)
     input("Converstion complete. See output folder for results. \nHit enter or close this window\n")
 
 def genShortUUID(length=7):
@@ -261,6 +265,35 @@ def getUserInput(prompt: str, path_type: str) -> str:
                 os.mkdir(path)
                 return path
             print(f"Invalid {path_type}. Please try again.")
+
+import os
+import shutil
+
+def remove_video_files(path: str):
+    if not os.path.exists(path):
+        print(f"Path '{path}' does not exist.")
+        return
+    
+    for root, dirs, files in os.walk(path, topdown=False):
+        # Delete files containing '_video' in their name
+        for file in files:
+            if '_video' in file:
+                file_path = os.path.join(root, file)
+                try:
+                    os.remove(file_path)
+                    print(f"Deleted file: {file_path}")
+                except Exception as e:
+                    print(f"Failed to delete file {file_path}: {e}")
+        
+        # Delete folders containing '_video' in their name
+        for dir in dirs:
+            if '_video' in dir:
+                dir_path = os.path.join(root, dir)
+                try:
+                    shutil.rmtree(dir_path)
+                    print(f"Deleted folder: {dir_path}")
+                except Exception as e:
+                    print(f"Failed to delete folder {dir_path}: {e}")
 
 
 main()
