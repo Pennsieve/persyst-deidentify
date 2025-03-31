@@ -3,8 +3,9 @@ import sys
 import csv
 import uuid
 import subprocess
-from datetime import datetime
+import shutil
 
+from datetime import datetime
 from pathlib import Path
 from datetime import datetime, timedelta
 
@@ -265,9 +266,6 @@ def getUserInput(prompt: str, path_type: str) -> str:
                 os.mkdir(path)
                 return path
             print(f"Invalid {path_type}. Please try again.")
-
-import os
-import shutil
 
 def remove_video_files(path: str):
     if not os.path.exists(path):
