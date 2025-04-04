@@ -22,7 +22,8 @@ setup(
     options={
         'build_exe': {
             'include_files': additional_files,
-            'packages': ["os", "sys", "uuid", "subprocess", "datetime", "pathlib", "shutil", "cx_Freeze"],
+            'packages': ["os", "sys", "uuid", "subprocess", "datetime", "pathlib", "shutil", "cx_Freeze","csv"],
+            'zip_include_packages': ["os", "sys", "uuid", "subprocess", "datetime", "pathlib", "shutil","csv","cx_Freeze"],
             'include_msvcr': True,
         }
     },
