@@ -122,11 +122,11 @@ def main():
         
             # Run the PSCLI command using the .lay file as the source and the temp XML as /Options
             pscli_command = [
-                "PSCLI.exe",                       # PSCLI.exe
-                f'/SourceFile={eeg_path}',   # Input file
-                '/FileType=BDF',
-                '/Archive',                       # Archive option
-                f'/Options={temp_xml_file}'       # options file
+                "PSCLI.exe",
+                f'/SourceFile={eeg_path}',  # Input file
+                '/FileType=Lifelines',
+                '/Archive',
+                f'/Options={temp_xml_file}'
             ]
 
             result = subprocess.run(pscli_command, capture_output=True, text=True)

@@ -34,7 +34,7 @@
             <Value name="ExportEntireRecord">1</Value>
             <Value name="RemoveVEye">0</Value>
             <Value name="RemoveLEye">0</Value>
-            <Value name="FileType">"BDF"</Value>
+            <Value name="FileType">"Lifelines"</Value>
             <Value name="ApplyAR">0</Value>
             <Value name="Deindentify">1</Value>
             <Value name="ExportEntireVideo">0</Value>
