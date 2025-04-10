@@ -27,6 +27,8 @@ TEMPLATE_SUBSTITUTION_STRING = "$NEW_FILE_NAME"
 OUTPUT_SUBSTITUTION_STRING = "$OUTPUT_DIRECTORY"
 PSCLI_DIRECTORY = r"C:\Program Files (x86)\Persyst\Insight"
 
+LOG_FILE = "worklog.txt"
+
 seen_patient_ids = {}
 
 #  Public output CSV headers
@@ -215,17 +217,17 @@ def main():
                         write_to_csv(private_csv_payload,os.path.join(private_files_path, "full-report-private.csv") )
                         write_to_csv(private_csv_payload,os.path.join(private_files_path, f"{encoded_file_name}_private.csv") )
                         write_to_csv(public_csv_payload,os.path.join(output_location, f"{encoded_file_name}_public.csv") )
-                        print(result.stdout)
-                        print("Successfully Archived")
+                        log_and_print(os.path.join(private_files_path, LOG_FILE), result.stdout)
+                        log_and_print(os.path.join(private_files_path, LOG_FILE), "Successfully Archived")
                     else:
                         print(f"Failure on archive of: {eeg_path}")
                         write_to_csv(private_csv_payload,os.path.join(output_base, "errors.csv") )
-                        print("done writing CSV")
-                        print(result.stderr)
+                        log_and_print(os.path.join(private_files_path, LOG_FILE), result.stdout)
+                        log_and_print(os.path.join(private_files_path, LOG_FILE), "done writing CSV")
                     
                     os.remove(temp_xml_file)
     remove_video_files(output_base)
-    input("Converstion complete. See output folder for results. \nHit enter or close this window\n")
+    log_and_print(os.path.join(private_files_path, LOG_FILE), "Converstion complete. See output folder for results. \nHit enter or close this window\n")
 
 def genShortUUID(length=7):
     """
@@ -293,5 +295,13 @@ def remove_video_files(path: str):
                 except Exception as e:
                     print(f"Failed to delete folder {dir_path}: {e}")
 
+def log_and_print(file_path, text):
+    """
+    Append text to file log
+    """
+    with open(file_path, 'a') as file: 
+        file.write(text)
+    
+    print(text)
 
 main()
