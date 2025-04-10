@@ -227,7 +227,7 @@ def main():
                     
                     os.remove(temp_xml_file)
     remove_video_files(output_base)
-    log_and_print(os.path.join(private_files_path, LOG_FILE), "Converstion complete. See output folder for results. \nHit enter or close this window\n")
+    input("Converstion complete. See output folder for results. \nHit enter or close this window\n")
 
 def genShortUUID(length=7):
     """
