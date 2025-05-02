@@ -108,7 +108,7 @@ def main():
 
 
     write_to_csv(PRIVATE_CSV_HEADERS,os.path.join(private_files_path, "full-report-private.csv") )
-    write_to_csv(PRIVATE_CSV_HEADERS,os.path.join(output_base, "errors.csv") )
+    write_to_csv(PRIVATE_CSV_HEADERS,os.path.join(private_files_path, "errors.csv") )
 
     inputs = {}
 
@@ -221,7 +221,7 @@ def main():
                         log_and_print(os.path.join(private_files_path, LOG_FILE), "Successfully Archived")
                     else:
                         print(f"Failure on archive of: {eeg_path}")
-                        write_to_csv(private_csv_payload,os.path.join(output_base, "errors.csv") )
+                        write_to_csv(private_csv_payload,os.path.join(private_files_path, "errors.csv") )
                         log_and_print(os.path.join(private_files_path, LOG_FILE), result.stdout)
                         log_and_print(os.path.join(private_files_path, LOG_FILE), "done writing CSV")
                     
