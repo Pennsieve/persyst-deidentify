@@ -8,6 +8,7 @@ import shutil
 from datetime import datetime
 from pathlib import Path
 from datetime import datetime, timedelta
+import pdb
 
 # CSV indicies
 DATE_TIME = 'Test Date'
@@ -28,6 +29,8 @@ OUTPUT_SUBSTITUTION_STRING = "$OUTPUT_DIRECTORY"
 PSCLI_DIRECTORY = r"C:\Program Files (x86)\Persyst\Insight"
 
 LOG_FILE = "worklog.txt"
+
+DEFAULT_DATABASE_LOCATION=r"C:\database.csv"
 
 seen_patient_ids = {}
 
@@ -64,11 +67,17 @@ def main():
     """
 
     if not os.path.isfile(PSCLI_DIRECTORY +'\\PSCLI.exe' ):
-        print(f"Persyst not found in {PSCLI_DIRECTORY}. Exiting")
+        log_and_print(os.path.join(private_files_path, LOG_FILE),f"Persyst not found in {PSCLI_DIRECTORY}. Exiting")
         input()
         sys.exit()
 
     if len(sys.argv) == 1:
+       
+       db_location = DEFAULT_DATABASE_LOCATION
+       change_database = getUserInput(r"CSV database default location is C:\database.csv. Change? [y/n]","string")
+       if change_database.lower() in ['y','yes']:
+            db_location = getUserInput("Please enter location of database","file")
+
        csv_path = getUserInput("Please enter complete file path to CSV: ", "file")
 
        output_base = getUserInput("Please enter output path to save de-identified files: ", "directory")
@@ -77,7 +86,7 @@ def main():
        if not os.path.exists(private_files_path):
            os.mkdir(private_files_path)
 
-       print(f"Private files will output to: {private_files_path}")
+       log_and_print(os.path.join(private_files_path, LOG_FILE),f"Private files will output to: {private_files_path}")
         
     elif len(sys.argv) > 1:
         # Get input arguments
@@ -85,7 +94,7 @@ def main():
         output_base = sys.argv[2]
         
         if not os.path.isfile(csv_path) or not os.path.isdir(output_base):
-            print("Usage: python persyst_deidentify.py <input_CSV> <output_directory> [xml_template_path]")
+            log_and_print(os.path.join(private_files_path, LOG_FILE),"Usage: python persyst_deidentify.py <input_CSV> <output_directory> [xml_template_path]")
             sys.exit(1)
 
     # Add PSCLI directory to the PATH for this run
@@ -96,14 +105,13 @@ def main():
     key_path = os.path.join(exe_dir, r'archive-template.xml')
     xml_template_path = key_path
 
-
-
-    print(f"CSV input: {csv_path}")
-    print(f"Output path: {output_base}")
-    print(f"XML template: {xml_template_path}\n")
+    log_and_print(os.path.join(private_files_path, LOG_FILE),f"Database location: {db_location}")
+    log_and_print(os.path.join(private_files_path, LOG_FILE),f"CSV input: {csv_path}")
+    log_and_print(os.path.join(private_files_path, LOG_FILE),f"Output path: {output_base}")
+    log_and_print(os.path.join(private_files_path, LOG_FILE),f"XML template: {xml_template_path}\n")
 
     if not os.path.exists(xml_template_path):
-        print(f"XML template not found at {xml_template_path}")
+        log_and_print(os.path.join(private_files_path, LOG_FILE),f"XML template not found at {xml_template_path}")
         sys.exit(1)
 
 
@@ -111,31 +119,33 @@ def main():
     write_to_csv(PRIVATE_CSV_HEADERS,os.path.join(private_files_path, "errors.csv") )
 
     inputs = {}
-
-    with open(f"{documents_path}\\input.csv", newline="") as csvfile:
-        reader = csv.reader(csvfile)
-        for row in reader:
-            key = row[INPUT_PATIENT_ID]
-            inputs[key] = [row[INPUT_STUDY_ID], row[INPUT_DATE]]
-
+    database = {}
 
     # Open the CSV input file
-    with open(csv_path, mode='r') as file:
+    with open(db_location, mode='r') as file:
         csv_reader = csv.DictReader(file,delimiter='\t')
 
         # Loop through each row in the CSV file
         for row in csv_reader:
+            database[row[PATIENT_ID]] = row
 
-            row_date_time = row[DATE_TIME]
-            eeg_duration = row[DURATION]
-            eeg_first_name = row[FIRST_NAME]
-            eeg_last_name = row[LAST_NAME]
-            eeg_patient_id = row[PATIENT_ID]
-            eeg_path = row [PATH]
-            dob = row [DOB]
-            
+    with open(csv_path, newline="") as csvfile:
+        reader = csv.reader(csvfile)
+        for row in reader:
+            print(f"ROW:::::: {row}")
+            key = row[INPUT_PATIENT_ID]
+            inputs[key] = [row[INPUT_STUDY_ID], row[INPUT_DATE]]
 
-            if eeg_patient_id in inputs.keys():    
+            if(key in database.keys()):
+                print(f"KEY::::::{key}")
+                row_date_time = database[key][DATE_TIME]
+                eeg_duration = database[key][DURATION]
+                eeg_first_name = database[key][FIRST_NAME]
+                eeg_last_name = database[key][LAST_NAME]
+                eeg_patient_id = database[key][PATIENT_ID]
+                eeg_path = database[key][PATH]
+                dob = database[key][DOB]
+ 
                 dates_before = None
                 days_after = None
                 if inputs[eeg_patient_id] != None:            
@@ -175,7 +185,7 @@ def main():
                     try:
                         os.mkdir(output_location)
                     except FileExistsError:
-                        print(f"Directory '{output_location}' already exists.")
+                        log_and_print(os.path.join(private_files_path, LOG_FILE),f"Directory '{output_location}' already exists.")
 
                     # write CSV header
                     if os.path.exists(os.path.join(private_files_path, f"{encoded_file_name}_private.csv")):
@@ -197,7 +207,7 @@ def main():
                                 rewrite_name = encoded_file_name
                             else:
                                 rewrite_name = f"{encoded_file_name}-{file_counter}"
-                            modified_line = line.replace(TEMPLATE_SUBSTITUTION_STRING, f"{rewrite_name}.lay")
+                            modified_line = line.replace(TEMPLATE_SUBSTITUTION_STRING, f"{rewrite_name}.edf")
                             modified_line = modified_line.replace(OUTPUT_SUBSTITUTION_STRING, output_location)
                             output_file.write(modified_line)
                 
@@ -220,7 +230,7 @@ def main():
                         log_and_print(os.path.join(private_files_path, LOG_FILE), result.stdout)
                         log_and_print(os.path.join(private_files_path, LOG_FILE), "Successfully Archived")
                     else:
-                        print(f"Failure on archive of: {eeg_path}")
+                        log_and_print(os.path.join(private_files_path, LOG_FILE),f"Failure on archive of: {eeg_path}")
                         write_to_csv(private_csv_payload,os.path.join(private_files_path, "errors.csv") )
                         log_and_print(os.path.join(private_files_path, LOG_FILE), result.stdout)
                         log_and_print(os.path.join(private_files_path, LOG_FILE), "done writing CSV")
@@ -255,18 +265,20 @@ def write_to_csv(data, file_path):
 
 def getUserInput(prompt: str, path_type: str) -> str:
     while True:
-        path = input(prompt)
+        user_input = input(prompt)
         
-        if path_type == "directory" and os.path.isdir(path):
-            print(f"Valid directory: {path}")
-            return path
-        elif path_type == "file" and os.path.isfile(path):
-            print(f"Valid file: {path}")
-            return path
+        if path_type == "directory" and os.path.isdir(user_input):
+            print(f"Valid directory: {user_input}")
+            return user_input
+        elif path_type == "file" and os.path.isfile(user_input):
+            print(f"Valid file: {user_input}")
+            return user_input
+        elif path_type == "string":
+            return user_input
         else:
             if path_type == "directory":
-                os.mkdir(path)
-                return path
+                os.mkdir(user_input)
+                return user_input
             print(f"Invalid {path_type}. Please try again.")
 
 def remove_video_files(path: str):
