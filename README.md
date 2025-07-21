@@ -9,7 +9,7 @@ Script assumes
 - You have a copy of Persyst installed with a valid license.
 - Persyst is installed in the default location (C:\Program Files (x86)\Persyst\Insight)
 - PSCLI.exe is available in it's default location (C:\Program Files (x86)\Persyst\Insight). Should be part of default Persyst installation
-- Persyst database has the columns `Test Date	Duration	First Name	Last Name	Patient ID	File Name With Path	DOB` in that order
+- Persyst database has the columns `Test Date	Duration	First Name	Last Name	Patient ID	File Name With Path	DOB` in that order as a Tab separated file
 
 ## Usage
 

@@ -12,7 +12,7 @@ additional_files = [
 ]
 
 # Create an executable
-executables = [Executable('main.py', base=None, icon=icon)]
+executables = [Executable('main.py', base=None, icon=icon, target_name='main.exe')]
 
 setup(
     name='SEED de-identify and convert',
@@ -22,8 +22,8 @@ setup(
     options={
         'build_exe': {
             'include_files': additional_files,
-            'packages': ["os", "sys", "uuid", "subprocess", "datetime", "pathlib", "shutil", "cx_Freeze","csv"],
-            'zip_include_packages': ["os", "sys", "uuid", "subprocess", "datetime", "pathlib", "shutil","csv","cx_Freeze"],
+            'packages': ["os", "sys", "uuid", "subprocess", "datetime", "pathlib", "shutil", "cx_Freeze","csv", "re"],
+            'zip_include_packages': ["os", "sys", "uuid", "subprocess", "datetime", "pathlib", "shutil","csv","cx_Freeze","re"],
             'include_msvcr': True,
         }
     },
