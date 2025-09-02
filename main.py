@@ -19,9 +19,6 @@ LAST_NAME = 'Last Name'
 PATIENT_ID = 'Patient ID'
 PATH = 'File Name With Path'
 DOB = 'DOB'
-SEARCH_NUM_DAYS_BEFORE = 0
-SEARCH_NUM_DAYS_AFTER = 7
-
 INPUT_STUDY_ID = 0
 INPUT_PATIENT_ID = 1
 INPUT_DATE = 2
@@ -49,7 +46,6 @@ FILE_TYPES = {
     "pnt": "NihonKohden 2100"
 }
 
-
 seen_patient_ids = {}
 
 
@@ -76,6 +72,8 @@ PRIVATE_CSV_HEADERS = [
         "csv_creation_date",
 ]
 
+POSITIVE_INPUTS = ['y','yes']
+
 def main():
     
     """
@@ -84,6 +82,9 @@ def main():
     Script requires an input CSV, and output directory and optionally a path to an xml template as arguments
     If no xml template path is specified it is assumed that there is a file named `archive-template.xml` in the directory the script is running from
     """
+    
+    search_num_days_before = 1
+    search_num_days_after = 7
 
     if not os.path.isfile(PSCLI_DIRECTORY +'\\PSCLI.exe' ):
         log_and_print(os.path.join(private_files_path, LOG_FILE),f"Persyst not found in {PSCLI_DIRECTORY}. Exiting")
@@ -94,12 +95,25 @@ def main():
        
        db_location = DEFAULT_DATABASE_LOCATION
        change_database = getUserInput(r"CSV database default location is C:\database.csv. Change? [y/n]: ","string")
-       if change_database.lower() in ['y','yes']:
+       if change_database.lower() in POSITIVE_INPUTS:
             db_location = getUserInput("Please enter location of database: ","file")
 
        input_csv_path = getUserInput("Please enter complete file path to Input CSV: ", "file")
 
        output_base = getUserInput("Please enter output path to save de-identified files: ", "directory")
+       
+       # TODO: Add input requests for days before and days after. Have options for getting every EEG before and after certain dates
+       
+       custom_search = getUserInput(
+            f"Search is set to find records {search_num_days_after} days after date of service "
+            f"and {search_num_days_before} before data of service. \n"
+            f"Change? [y/n]",
+            "string"
+           )
+       
+       if custom_search in POSITIVE_INPUTS:
+           search_num_days_after = int(getUserInput("How many days to search after date of service? ", "int"))
+           search_num_days_before = int(getUserInput("How many days to search before date of service? ", "int"))
 
        private_files_path = output_base.rstrip("\\") + "_private"
        if not os.path.exists(private_files_path):
@@ -194,11 +208,11 @@ def main():
 
                         age_in_days = (datef - dobf).days
                         
-                        dates_before = search_datef - timedelta(days=SEARCH_NUM_DAYS_BEFORE)
-                        days_after = search_datef + timedelta(days=SEARCH_NUM_DAYS_AFTER)
-                        print(f"Days afgter {days_after}")
-                        print(f"Days before {dates_before}")
-                        print(datef)
+                        dates_before = search_datef - timedelta(days=search_num_days_before)
+                        days_after = search_datef + timedelta(days=search_num_days_after)
+                        log_and_print(os.path.join(private_files_path, LOG_FILE), f"Days after {days_after}")
+                        log_and_print(os.path.join(private_files_path, LOG_FILE),f"Days before {dates_before}")
+                        log_and_print(os.path.join(private_files_path, LOG_FILE),datef)
                         
                         if dates_before <= datef <= days_after or search_datef == datetime.strptime("11/11/1111", input_format) :
 
@@ -262,9 +276,9 @@ def main():
                             # PSCLI.exe /SourceFile="ENTERED PATH" /Archive / Options ="TEMP XML FILE" 
 
                             result = subprocess.run(pscli_command, capture_output=True, text=True)
-                            print(result.returncode)
-                            print(result.stderr)
-                            print(result.stdout)
+                            log_and_print(result.returncode)
+                            log_and_print(result.stderr)
+                            log_and_print(result.stdout)
                             if result.returncode == 0:
                                 write_to_csv(private_csv_payload,os.path.join(private_files_path, "full-report-private.csv") )
                                 write_to_csv(private_csv_payload,os.path.join(private_files_path, f"{encoded_file_name}_private.csv") )
@@ -317,6 +331,8 @@ def getUserInput(prompt: str, path_type: str) -> str:
             return user_input
         elif path_type == "string":
             return user_input
+        elif path_type == "int":
+            return user_input
         else:
             if path_type == "directory":
                 os.mkdir(user_input)
@@ -354,7 +370,7 @@ def log_and_print(file_path, text):
     Append text to file log
     """
     with open(file_path, 'a') as file: 
-        file.write(text)
+        file.write(str(text))
     
     print(text)
 
