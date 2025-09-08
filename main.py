@@ -276,9 +276,9 @@ def main():
                             # PSCLI.exe /SourceFile="ENTERED PATH" /Archive / Options ="TEMP XML FILE" 
 
                             result = subprocess.run(pscli_command, capture_output=True, text=True)
-                            log_and_print(result.returncode)
-                            log_and_print(result.stderr)
-                            log_and_print(result.stdout)
+                            print(result.returncode)
+                            print(result.stderr)
+                            print(result.stdout)
                             if result.returncode == 0:
                                 write_to_csv(private_csv_payload,os.path.join(private_files_path, "full-report-private.csv") )
                                 write_to_csv(private_csv_payload,os.path.join(private_files_path, f"{encoded_file_name}_private.csv") )
