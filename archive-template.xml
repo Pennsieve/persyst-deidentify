@@ -30,7 +30,7 @@
             <Value name="FileType">"PersystLayout (*.lay)|*.lay|"</Value>
             <Value name="ApplyAR">0</Value>
             <Value name="Deindentify">1</Value>
-            <Value name="ExportEntireVideo">0</Value>
+            <Value name="ExportEntireVideo">2</Value>
             <Value name="ApplyAROnlyIfAvailable">0</Value>
         </Key>
         <Key name="Filters">0
