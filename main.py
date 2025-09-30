@@ -6,6 +6,7 @@ import subprocess
 import shutil
 
 from datetime import datetime
+from dateutil import parser
 from pathlib import Path
 from datetime import datetime, timedelta
 import pdb
@@ -182,10 +183,10 @@ def main():
                     eeg_last_name = record[LAST_NAME]
                     eeg_patient_id = record[PATIENT_ID]
                     eeg_path = record[PATH]
-                    dob = record[DOB]
+                    dob = record[DOB].strip()
 
                     _, extension = os.path.splitext(eeg_path)
-                    extension = extension[1:]
+                    extension = extension[1:].lower()
                     print(f"Found file path with extension: {extension}")
                     if extension in FILE_TYPES:
                         print(f"Setting machine type to: {FILE_TYPES[extension]}")
@@ -193,26 +194,49 @@ def main():
                     else:
                         print(f"No matching file type. Supported options are : {FILE_TYPES}")
                         continue
- 
-                    dates_before = None
-                    days_after = None
-                    if eeg_patient_id in inputs:            
-                        date_format = "%Y.%m.%d"
+
+                    if eeg_patient_id in inputs:
+                        try:
+                            datef = datetime.strptime(row_date_time, "%Y.%m.%d %H:%M:%S").date()
+                            test_date, test_time = row_date_time.split()
+                        except ValueError:
+                            try:
+                                test_date, test_time = row_date_time.split()
+                                datef = datetime.strptime(test_date, "%Y.%m.%d").date()
+                            except Exception as e:
+                                log_and_print(os.path.join(private_files_path, LOG_FILE),
+                                            f"Invalid row_date_time '{row_date_time}': {e}")
+                                continue
+
                         input_format = "%m/%d/%Y"
-                        test_date, test_time = row_date_time.split()
-                        datef = datetime.strptime(test_date, date_format)
-                        search_datef = datetime.strptime(inputs[eeg_patient_id][1], input_format)
+                        try:
+                            search_datef = datetime.strptime(inputs[eeg_patient_id][1], input_format).date()
+                        except ValueError as e:
+                            log_and_print(os.path.join(private_files_path, LOG_FILE),
+                                        f"Invalid search_date '{inputs[eeg_patient_id][1]}': {e}")
+                            continue
 
-                        dobf = datetime.strptime(dob, "%m/%d/%Y" if re.search(r"\d{4}$", dob) else "%m/%d/%y")
+                        try:
+                            dobf = parse_and_standardize(dob)
+                        except ValueError as e:
+                            log_and_print(os.path.join(private_files_path, LOG_FILE),
+                                        f"Invalid DOB '{dob}': {e}")
+                            continue
 
+                        today = datetime.today().date()
+                        if dobf > today:
+                            dobf = dobf.replace(year=dobf.year - 100)
 
+                        # Calculate age in days
                         age_in_days = (datef - dobf).days
-                        
+
+                        # Calculate before/after windows
                         dates_before = search_datef - timedelta(days=search_num_days_before)
-                        days_after = search_datef + timedelta(days=search_num_days_after)
-                        log_and_print(os.path.join(private_files_path, LOG_FILE), f"Days after {days_after}")
-                        log_and_print(os.path.join(private_files_path, LOG_FILE),f"Days before {dates_before}")
-                        log_and_print(os.path.join(private_files_path, LOG_FILE),datef)
+                        days_after  = search_datef + timedelta(days=search_num_days_after)
+
+                        log_and_print(os.path.join(private_files_path, LOG_FILE), f"Days after: {days_after.isoformat()}")
+                        log_and_print(os.path.join(private_files_path, LOG_FILE), f"Days before: {dates_before.isoformat()}")
+                        log_and_print(os.path.join(private_files_path, LOG_FILE), f"Test date: {datef.isoformat()}")
                         
                         if dates_before <= datef <= days_after or search_datef == datetime.strptime("11/11/1111", input_format) :
 
@@ -373,5 +397,25 @@ def log_and_print(file_path, text):
         file.write(str(text))
     
     print(text)
+    
+def parse_and_standardize(dob_str: str, default_format="MDY") -> str:
+    """
+    Parse a DOB string and return ISO8601 YYYY-MM-DD.
+    default_format: "MDY" or "DMY" when ambiguous.
+    """
+    dob_str = dob_str.strip()
+    if not dob_str:
+        raise ValueError("Empty DOB")
+
+    # Use dateutil to handle flexible input
+    try:
+        if default_format == "DMY":
+            dobf = parser.parse(dob_str, dayfirst=True).date()
+        else:  # MDY
+            dobf = parser.parse(dob_str, dayfirst=False).date()
+    except Exception as e:
+        raise ValueError(f"Unsupported DOB: {dob_str} ({e})")
+
+    return dobf
 
 main()
