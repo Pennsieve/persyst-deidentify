@@ -44,7 +44,8 @@ FILE_TYPES = {
     "edf": "EDF90",
     "maf": "MEF",
     "mefd": "MEF3",
-    "pnt": "NihonKohden 2100"
+    "pnt": "NihonKohden 2100",
+    "trc": "Micromed"
 }
 
 seen_patient_ids = {}
