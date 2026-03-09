@@ -22,9 +22,10 @@ setup(
     options={
         'build_exe': {
             'include_files': additional_files,
-            'packages': ["os", "sys", "uuid", "subprocess", "datetime", "pathlib", "shutil", "cx_Freeze","csv", "re"],
-            'zip_include_packages': ["os", "sys", "uuid", "subprocess", "datetime", "pathlib", "shutil","csv","cx_Freeze","re"],
+            'packages': ["os", "sys", "uuid", "subprocess", "datetime", "pathlib", "shutil", "cx_Freeze","csv", "re","dateutil"],
+            'zip_include_packages': ["os", "sys", "uuid", "subprocess", "datetime", "pathlib", "shutil","csv","cx_Freeze","re","dateutil"],
             'include_msvcr': True,
+            'replace_paths': [("*", "")],
         }
     },
 )
