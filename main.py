@@ -4,6 +4,7 @@ import csv
 import uuid
 import subprocess
 import shutil
+import xml.etree.ElementTree as ET
 
 from datetime import datetime
 from dateutil import parser
@@ -317,7 +318,19 @@ def main():
                                 log_and_print(os.path.join(private_files_path, LOG_FILE), "done writing CSV")
                             
                             os.remove(temp_xml_file)
-    remove_video_files(output_base)
+    # Only remove video files if ExportEntireVideo is not set to 1 in the template
+    try:
+        tree = ET.parse(xml_template_path)
+        root = tree.getroot()
+        export_video = root.find('.//Value[@name="ExportEntireVideo"]')
+        keep_videos = export_video is not None and export_video.text.strip() == '1'
+    except Exception:
+        keep_videos = False
+
+    if keep_videos:
+        log_and_print(os.path.join(private_files_path, LOG_FILE), "ExportEntireVideo is enabled. Keeping video files.")
+    else:
+        remove_video_files(output_base)
     input("Converstion complete. See output folder for results. \nHit enter or close this window\n")
 
 def genShortUUID(length=7):
