@@ -77,6 +77,21 @@ PRIVATE_CSV_HEADERS = [
 
 POSITIVE_INPUTS = ['y','yes']
 
+# Set by the -v / --verbose command line flag. When True, vprint() emits
+# detailed step-by-step diagnostics.
+VERBOSE = False
+
+
+def vprint(*args, **kwargs):
+    """
+    Print only when verbose mode is enabled (main -v / --verbose).
+    Prefixed with [verbose] so diagnostic output is easy to distinguish
+    from the normal user-facing messages.
+    """
+    if VERBOSE:
+        print("[verbose]", *args, **kwargs)
+
+
 def main():
     
     """
@@ -86,15 +101,30 @@ def main():
     If no xml template path is specified it is assumed that there is a file named `archive-template.xml` in the directory the script is running from
     """
     
+    global VERBOSE
+
     search_num_days_before = 1
     search_num_days_after = 7
+
+    # Pull the verbose flag out of argv so the remaining positional arguments
+    # (input CSV, output directory) keep their existing meaning whether or not
+    # -v is present. Supports:  main -v   |   main input.csv output_dir -v
+    positional_args = []
+    for arg in sys.argv[1:]:
+        if arg in ("-v", "--verbose"):
+            VERBOSE = True
+        else:
+            positional_args.append(arg)
+
+    if VERBOSE:
+        print("[verbose] Verbose mode enabled.")
 
     if not os.path.isfile(PSCLI_DIRECTORY +'\\PSCLI.exe' ):
         log_and_print(os.path.join(private_files_path, LOG_FILE),f"Persyst not found in {PSCLI_DIRECTORY}. Exiting")
         input()
         sys.exit()
 
-    if len(sys.argv) == 1:
+    if len(positional_args) == 0:
        
        db_location = DEFAULT_DATABASE_LOCATION
        change_database = getUserInput(r"CSV database default location is C:\database.csv. Change? [y/n]: ","string")
@@ -124,11 +154,11 @@ def main():
 
        log_and_print(os.path.join(private_files_path, LOG_FILE),f"Private files will output to: {private_files_path}")
         
-    elif len(sys.argv) > 1:
+    elif len(positional_args) > 0:
         # Get input arguments
-        input_csv_path = sys.argv[1]
-        output_base = sys.argv[2]
-        
+        input_csv_path = positional_args[0]
+        output_base = positional_args[1]
+
         if not os.path.isfile(input_csv_path) or not os.path.isdir(output_base):
             log_and_print(os.path.join(private_files_path, LOG_FILE),"Usage: python persyst_deidentify.py <input_CSV> <output_directory> [xml_template_path]")
             sys.exit(1)
@@ -157,8 +187,14 @@ def main():
     inputs = {}
     database = {}
 
-    # Open the CSV input file
-    with open(db_location, mode='r') as file:
+    # Open the database file.
+    # encoding="utf-8-sig" transparently strips a leading UTF-8 BOM (EF BB BF)
+    # if one is present. Excel's "CSV UTF-8" export prepends this BOM, which
+    # otherwise becomes part of the first column's value (e.g. it shows up in
+    # the terminal as the garbled "i>>?"/"ï»¿" prefix). Plain "r" mode does NOT
+    # strip it.
+    vprint(f"Opening database file: {repr(db_location)}")
+    with open(db_location, mode='r', encoding='utf-8-sig') as file:
         database_reader = csv.DictReader(file,delimiter='\t')
 
         # Loop through each row in the CSV file
@@ -166,14 +202,24 @@ def main():
             if row[PATIENT_ID] not in database:
                 database[row[PATIENT_ID]] = []
             database[row[PATIENT_ID]].append(row)
+    vprint(f"Database loaded: {len(database)} unique patient IDs across "
+           f"{sum(len(v) for v in database.values())} records")
 
-    with open(input_csv_path, newline="") as input_csv_file:
+    # See note above re: utf-8-sig — this is the input CSV the user creates,
+    # and is the file that was carrying the BOM in the reported case.
+    vprint(f"Opening input CSV: {repr(input_csv_path)}")
+    with open(input_csv_path, newline="", encoding='utf-8-sig') as input_csv_file:
         machine_type = "XLTEK"
         input_csv_reader = csv.reader(input_csv_file)
-        
+
         for row in input_csv_reader:
             print(f"Processing data row: {row}")
+            # Show the raw bytes/repr of every field so any stray BOM,
+            # whitespace, or non-printable character is visible.
+            vprint(f"  row field reprs: {[repr(field) for field in row]}")
             patient_id = row[INPUT_PATIENT_ID]
+            vprint(f"  study_id={repr(row[INPUT_STUDY_ID])} "
+                   f"patient_id={repr(patient_id)} date={repr(row[INPUT_DATE])}")
             inputs[patient_id] = [row[INPUT_STUDY_ID], row[INPUT_DATE]]
 
             # Find record in database
@@ -187,8 +233,28 @@ def main():
                     eeg_path = record[PATH]
                     dob = record[DOB].strip()
 
-                    _, extension = os.path.splitext(eeg_path)
-                    extension = extension[1:].lower()
+                    # --- VERBOSE FILE-TYPE DEBUGGING ---
+                    # repr() is used deliberately so hidden characters (trailing
+                    # spaces, tabs, newlines, non-breaking spaces) are visible in
+                    # the output instead of being swallowed by the terminal.
+                    vprint("---- file-type debug ----")
+                    vprint(f"  patient_id (record): {repr(eeg_patient_id)}")
+                    vprint(f"  raw eeg_path:         {repr(eeg_path)}")
+                    vprint(f"  eeg_path length:      {len(eeg_path)}")
+
+                    root, raw_extension = os.path.splitext(eeg_path)
+                    vprint(f"  splitext root:        {repr(root)}")
+                    vprint(f"  splitext extension:   {repr(raw_extension)}")
+
+                    extension = raw_extension[1:].lower()
+                    vprint(f"  extension (sliced/lower): {repr(extension)}")
+                    # Whitespace-stripped variant — if this differs from the value
+                    # above, the source CSV field has stray whitespace.
+                    vprint(f"  extension (stripped):     {repr(extension.strip())}")
+                    vprint(f"  in FILE_TYPES?            {extension in FILE_TYPES}")
+                    vprint(f"  in FILE_TYPES (stripped)? {extension.strip() in FILE_TYPES}")
+                    vprint("--------------------------")
+
                     print(f"Found file path with extension: {extension}")
                     if extension in FILE_TYPES:
                         print(f"Setting machine type to: {FILE_TYPES[extension]}")
@@ -198,6 +264,8 @@ def main():
                         continue
 
                     if eeg_patient_id in inputs:
+                        vprint(f"Matched record for patient_id={repr(eeg_patient_id)} "
+                               f"(row_date_time={repr(row_date_time)}, dob={repr(dob)})")
                         try:
                             datef = datetime.strptime(row_date_time, "%Y.%m.%d %H:%M:%S").date()
                             test_date, test_time = row_date_time.split()
@@ -240,7 +308,10 @@ def main():
                         log_and_print(os.path.join(private_files_path, LOG_FILE), f"Days before: {dates_before.isoformat()}")
                         log_and_print(os.path.join(private_files_path, LOG_FILE), f"Test date: {datef.isoformat()}")
                         
-                        if dates_before <= datef <= days_after or search_datef == datetime.strptime("11/11/1111", input_format) :
+                        in_window = dates_before <= datef <= days_after or search_datef == datetime.strptime("11/11/1111", input_format)
+                        vprint(f"  age_in_days={age_in_days}, window={dates_before.isoformat()}..{days_after.isoformat()}, "
+                               f"test_date={datef.isoformat()}, in_window={in_window}")
+                        if in_window:
 
                             file_counter = ""
                             if eeg_patient_id in seen_patient_ids:
@@ -301,7 +372,11 @@ def main():
 
                             # PSCLI.exe /SourceFile="ENTERED PATH" /Archive / Options ="TEMP XML FILE" 
 
+                            vprint(f"  encoded_file_name={repr(encoded_file_name)}")
+                            vprint(f"  temp_xml_file={repr(temp_xml_file)}")
+                            vprint(f"  PSCLI command: {pscli_command}")
                             result = subprocess.run(pscli_command, capture_output=True, text=True)
+                            vprint(f"  PSCLI returncode={result.returncode}")
                             print(result.returncode)
                             print(result.stderr)
                             print(result.stdout)
