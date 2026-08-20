@@ -81,15 +81,146 @@ POSITIVE_INPUTS = ['y','yes']
 # detailed step-by-step diagnostics.
 VERBOSE = False
 
+# Full path to the verbose log, set once the private output folder exists.
+# Until then vprint() output only goes to the screen.
+VERBOSE_LOG_PATH = None
+
+VERBOSE_LOG_FILE = "verbose.log"
+
+# Windows file attribute bits, from the MSDN "File Attribute Constants" list.
+# These are the ones that explain a file we can see but cannot read.
+FILE_ATTRIBUTE_ENCRYPTED = 0x4000
+FILE_ATTRIBUTE_OFFLINE = 0x1000
+FILE_ATTRIBUTE_RECALL_ON_OPEN = 0x40000
+FILE_ATTRIBUTE_RECALL_ON_DATA_ACCESS = 0x400000
+
 
 def vprint(*args, **kwargs):
     """
-    Print only when verbose mode is enabled (main -v / --verbose).
-    Prefixed with [verbose] so diagnostic output is easy to distinguish
-    from the normal user-facing messages.
+    Print only when verbose mode is enabled (main -v / --verbose), and append
+    the same line to verbose.log in the private output folder. The log is what
+    a user emails back when a conversion fails, so it must not depend on them
+    scrolling the console.
     """
-    if VERBOSE:
-        print("[verbose]", *args, **kwargs)
+    if not VERBOSE:
+        return
+
+    print("[verbose]", *args, **kwargs)
+
+    if VERBOSE_LOG_PATH:
+        line = "[verbose] " + " ".join(str(a) for a in args)
+        try:
+            with open(VERBOSE_LOG_PATH, 'a', encoding='utf-8') as log_file:
+                log_file.write(f"{datetime.now().isoformat(timespec='seconds')} {line}\n")
+        except OSError as e:
+            # Never let logging kill the run.
+            print(f"[verbose] (could not write to {VERBOSE_LOG_PATH}: {e})")
+
+
+def describe_source_file(path):
+    """
+    Verbose-only inspection of a source EEG file before it is handed to PSCLI.
+    Answers the 2AM question "why did this one file fail?" - missing, no read
+    permission, EFS-encrypted, still cloud-only, zero bytes, or a .lay whose
+    data file has gone missing.
+    """
+    if not VERBOSE:
+        return
+
+    vprint("---- source file check ----")
+    vprint(f"  path: {repr(path)}")
+
+    if not os.path.exists(path):
+        parent = os.path.dirname(path)
+        vprint("  exists: NO  <-- PSCLI will fail. Check the path column in the database CSV.")
+        vprint(f"  parent directory: {repr(parent)} exists={os.path.isdir(parent)}")
+        vprint("---------------------------")
+        return
+
+    vprint("  exists: yes")
+
+    try:
+        stats = os.stat(path)
+        vprint(f"  size: {stats.st_size} bytes")
+        vprint(f"  modified: {datetime.fromtimestamp(stats.st_mtime).isoformat(timespec='seconds')}")
+        if stats.st_size == 0:
+            vprint("  ZERO BYTES <-- there is nothing here to convert")
+
+        # st_file_attributes only exists on Windows.
+        attributes = getattr(stats, "st_file_attributes", None)
+        if attributes is not None:
+            vprint(f"  windows attributes: 0x{attributes:08x}")
+            if attributes & FILE_ATTRIBUTE_ENCRYPTED:
+                vprint("  ENCRYPTED (Windows EFS) <-- this tool reads the file as the logged-in "
+                       "user. If another account encrypted it, it cannot be opened here.")
+            if attributes & (FILE_ATTRIBUTE_OFFLINE
+                             | FILE_ATTRIBUTE_RECALL_ON_OPEN
+                             | FILE_ATTRIBUTE_RECALL_ON_DATA_ACCESS):
+                vprint("  OFFLINE / cloud-only (OneDrive, Dropbox, archive tier) <-- the file must "
+                       "be downloaded to local disk before conversion.")
+    except OSError as e:
+        vprint(f"  stat failed: {e}")
+
+    vprint(f"  readable by this user: {os.access(path, os.R_OK)}")
+
+    # Open it ourselves. A failure here is the same failure PSCLI will hit, and
+    # the header bytes tell us whether the content is plain or scrambled.
+    try:
+        with open(path, 'rb') as source_file:
+            head = source_file.read(64)
+        vprint(f"  first 32 bytes (hex):   {head[:32].hex(' ')}")
+        vprint(f"  first 32 bytes (ascii): {repr(head[:32])}")
+        printable = sum(1 for b in head if 32 <= b < 127 or b in (9, 10, 13))
+        vprint(f"  printable bytes in header: {printable}/{len(head)}")
+        if head[:2] == b'PK':
+            vprint("  header looks like a ZIP container, not raw EEG data")
+    except PermissionError as e:
+        vprint(f"  OPEN FAILED - permission denied: {e}")
+        vprint("  <-- file is locked by another program, on a share we lack rights to, "
+               "or encrypted for a different user")
+    except OSError as e:
+        vprint(f"  OPEN FAILED: {e}")
+
+    if path.lower().endswith('.lay'):
+        describe_lay_file(path)
+
+    vprint("---------------------------")
+
+
+def describe_lay_file(path):
+    """
+    A .lay file is plain text that points at the real data file. If that
+    pointer is broken, or the .lay itself is not readable text, the conversion
+    fails even though the .lay is sitting right there.
+    """
+    try:
+        with open(path, 'r', encoding='utf-8-sig', errors='strict') as lay_file:
+            contents = lay_file.read(4096)
+    except UnicodeDecodeError:
+        vprint("  .lay is NOT readable text <-- expected an INI-style header. "
+               "Likely encrypted or corrupt.")
+        return
+    except OSError as e:
+        vprint(f"  .lay could not be read: {e}")
+        return
+
+    if '[FileInfo]' not in contents:
+        vprint("  .lay is missing the [FileInfo] section <-- not a Persyst layout file")
+
+    match = re.search(r'^\s*File\s*=\s*(.+?)\s*$', contents, re.MULTILINE | re.IGNORECASE)
+    if not match:
+        vprint("  .lay has no File= entry, cannot check the companion data file")
+        return
+
+    data_file = match.group(1)
+    # The File= entry is often relative to the .lay's own folder.
+    if not os.path.isabs(data_file):
+        data_file = os.path.join(os.path.dirname(path), data_file)
+    vprint(f"  .lay data file: {repr(data_file)} exists={os.path.exists(data_file)}")
+    if os.path.exists(data_file):
+        vprint(f"  .lay data file size: {os.path.getsize(data_file)} bytes")
+    else:
+        vprint("  <-- the .lay points at a data file that is not there")
 
 
 def main():
@@ -101,7 +232,7 @@ def main():
     If no xml template path is specified it is assumed that there is a file named `archive-template.xml` in the directory the script is running from
     """
     
-    global VERBOSE
+    global VERBOSE, VERBOSE_LOG_PATH
 
     search_num_days_before = 1
     search_num_days_after = 7
@@ -153,15 +284,25 @@ def main():
            os.mkdir(private_files_path)
 
        log_and_print(os.path.join(private_files_path, LOG_FILE),f"Private files will output to: {private_files_path}")
-        
+
     elif len(positional_args) > 0:
         # Get input arguments
         input_csv_path = positional_args[0]
         output_base = positional_args[1]
+        db_location = positional_args[2] if len(positional_args) > 2 else DEFAULT_DATABASE_LOCATION
 
         if not os.path.isfile(input_csv_path) or not os.path.isdir(output_base):
-            log_and_print(os.path.join(private_files_path, LOG_FILE),"Usage: python persyst_deidentify.py <input_CSV> <output_directory> [xml_template_path]")
+            print("Usage: python persyst_deidentify.py <input_CSV> <output_directory> [database_csv] [-v]")
             sys.exit(1)
+
+        private_files_path = output_base.rstrip("\\") + "_private"
+        if not os.path.exists(private_files_path):
+            os.mkdir(private_files_path)
+
+    VERBOSE_LOG_PATH = os.path.join(private_files_path, VERBOSE_LOG_FILE)
+    if VERBOSE:
+        print(f"[verbose] Writing verbose log to: {VERBOSE_LOG_PATH}")
+        vprint(f"Run started {datetime.now().isoformat(timespec='seconds')}")
 
     # Add PSCLI directory to the PATH for this run
     os.environ["PATH"] += os.pathsep + PSCLI_DIRECTORY
@@ -197,6 +338,15 @@ def main():
     with open(db_location, mode='r', encoding='utf-8-sig') as file:
         database_reader = csv.DictReader(file,delimiter='\t')
 
+        # The database is tab delimited. If it was saved as comma delimited the
+        # whole line lands in one column and every lookup below silently misses,
+        # so show the parsed header names.
+        vprint(f"Database columns: {database_reader.fieldnames}")
+        if database_reader.fieldnames is not None and len(database_reader.fieldnames) == 1:
+            log_and_print(os.path.join(private_files_path, LOG_FILE),
+                          f"Warning: database {db_location} parsed as a single column. "
+                          f"It must be TAB delimited.\n")
+
         # Loop through each row in the CSV file
         for row in database_reader:
             if row[PATIENT_ID] not in database:
@@ -223,7 +373,12 @@ def main():
             inputs[patient_id] = [row[INPUT_STUDY_ID], row[INPUT_DATE]]
 
             # Find record in database
+            if patient_id not in database:
+                vprint(f"  patient_id {repr(patient_id)} NOT found in database "
+                       f"({len(database)} IDs loaded). Nothing to convert for this row.")
             if patient_id in database:
+                vprint(f"  patient_id {repr(patient_id)} matched "
+                       f"{len(database[patient_id])} database record(s)")
                 for record in database[patient_id]:
                     row_date_time = record[DATE_TIME]
                     eeg_duration = record[DURATION]
@@ -365,7 +520,7 @@ def main():
                             pscli_command = [
                                 f'PSCLI.exe',                       # PSCLI.exe
                                 f'/SourceFile={eeg_path}',   # Input file
-                                f'/FileType={machine_type} ',
+                                f'/FileType={machine_type}',
                                 f'/Archive',                       # Archive option
                                 f'/Options={temp_xml_file}'       # options file
                             ]
@@ -374,9 +529,35 @@ def main():
 
                             vprint(f"  encoded_file_name={repr(encoded_file_name)}")
                             vprint(f"  temp_xml_file={repr(temp_xml_file)}")
+                            vprint(f"  output_location={repr(output_location)}")
+                            vprint(f"  machine_type={repr(machine_type)}")
+
+                            # Check the source before PSCLI touches it. If the file is
+                            # unreadable, encrypted, or cloud-only, PSCLI just returns a
+                            # non-zero code with no explanation - this is where we find out why.
+                            describe_source_file(eeg_path)
+
                             vprint(f"  PSCLI command: {pscli_command}")
-                            result = subprocess.run(pscli_command, capture_output=True, text=True)
-                            vprint(f"  PSCLI returncode={result.returncode}")
+                            started_at = datetime.now()
+                            try:
+                                result = subprocess.run(pscli_command, capture_output=True, text=True)
+                            except OSError as e:
+                                log_and_print(os.path.join(private_files_path, LOG_FILE),
+                                              f"Could not run PSCLI for {eeg_path}: {e}\n")
+                                write_to_csv(private_csv_payload,os.path.join(private_files_path, "errors.csv") )
+                                os.remove(temp_xml_file)
+                                continue
+                            elapsed = (datetime.now() - started_at).total_seconds()
+
+                            vprint(f"  PSCLI returncode={result.returncode} in {elapsed:.1f}s")
+                            vprint(f"  PSCLI stdout: {repr(result.stdout)}")
+                            vprint(f"  PSCLI stderr: {repr(result.stderr)}")
+                            try:
+                                produced = sorted(os.listdir(output_location))
+                            except OSError as e:
+                                produced = f"(could not list: {e})"
+                            vprint(f"  output folder now contains: {produced}")
+
                             print(result.returncode)
                             print(result.stderr)
                             print(result.stdout)
@@ -387,9 +568,12 @@ def main():
                                 log_and_print(os.path.join(private_files_path, LOG_FILE), result.stdout)
                                 log_and_print(os.path.join(private_files_path, LOG_FILE), "Successfully Archived")
                             else:
-                                log_and_print(os.path.join(private_files_path, LOG_FILE),f"Failure on archive of: {eeg_path}")
+                                log_and_print(os.path.join(private_files_path, LOG_FILE),f"Failure on archive of: {eeg_path} (PSCLI exit {result.returncode})\n")
                                 write_to_csv(private_csv_payload,os.path.join(private_files_path, "errors.csv") )
                                 log_and_print(os.path.join(private_files_path, LOG_FILE), result.stdout)
+                                # stderr is where PSCLI reports "cannot open" / decryption errors.
+                                if result.stderr:
+                                    log_and_print(os.path.join(private_files_path, LOG_FILE), result.stderr)
                                 log_and_print(os.path.join(private_files_path, LOG_FILE), "done writing CSV")
                             
                             os.remove(temp_xml_file)
@@ -406,6 +590,8 @@ def main():
         log_and_print(os.path.join(private_files_path, LOG_FILE), "ExportEntireVideo is enabled. Keeping video files.")
     else:
         remove_video_files(output_base)
+    if VERBOSE_LOG_PATH and VERBOSE:
+        print(f"Verbose log written to: {VERBOSE_LOG_PATH}")
     input("Converstion complete. See output folder for results. \nHit enter or close this window\n")
 
 def genShortUUID(length=7):

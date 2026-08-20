@@ -53,3 +53,21 @@ wd6hs3,1234567,03/15/2023
 561a68fewa,1234567,06/01/2023
 a68148ew4,7654321,12/14/2023
 ```
+
+## Verbose mode
+
+Add `-v` (or `--verbose`) anywhere on the command line:
+
+```
+persyst_deidentify.exe -v
+persyst_deidentify.exe input.csv C:\output -v
+```
+
+Verbose output goes to the screen **and** to `verbose.log` in the private
+output folder (`<output>_private\verbose.log`), alongside `worklog.txt`. Ask
+users to send that file when a conversion fails.
+
+It reports, per file: the resolved path, size, Windows attributes (EFS
+encryption, cloud-only/OneDrive placeholders), whether we can actually open and
+read the first bytes, the file header in hex, the `.lay` companion data file,
+the exact PSCLI command, and PSCLI's exit code, stdout, and stderr.
