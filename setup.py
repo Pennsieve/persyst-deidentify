@@ -4,11 +4,14 @@ from cx_Freeze import setup, Executable
 exe_dir = os.path.dirname(os.path.abspath(__file__))
 archive_template = 'archive-template.xml'
 icon = 'icons/icon.ico'
+verbose_launcher = 'verbose.bat'
 
 # Specify additional files to include
 additional_files = [
     (archive_template, 'archive-template.xml'),
-    (icon, 'icons/icon.ico')
+    (icon, 'icons/icon.ico'),
+    # Double-clicking main.exe cannot pass -v, so ship a launcher that does.
+    (verbose_launcher, 'verbose.bat')
 ]
 
 # Create an executable

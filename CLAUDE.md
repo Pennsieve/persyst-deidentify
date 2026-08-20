@@ -14,6 +14,11 @@ python main.py <input_csv> <output_dir> [db_csv] [-v]
 python setup.py build                           # cx_Freeze, Windows only
 ```
 
+The build lands in `build\exe.win-amd64-3.x\` with `archive-template.xml`,
+the icon, and `verbose.bat` copied alongside `main.exe`. Ship the whole folder.
+`verbose.bat` exists because a double-clicked exe cannot be given `-v`; it also
+`cd /d "%~dp0"` first, since the template is read from the current directory.
+
 There are no tests. `main()` is called at import time at the bottom of
 `main.py`, so importing the module runs the program — exec the parsed AST with
 the trailing call stripped if you need to test helpers.

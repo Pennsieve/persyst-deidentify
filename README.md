@@ -56,11 +56,15 @@ a68148ew4,7654321,12/14/2023
 
 ## Verbose mode
 
-Add `-v` (or `--verbose`) anywhere on the command line:
+The easiest way: **double-click `verbose.bat`** in the same folder as
+`main.exe`. It runs the program with logging on and keeps the window open at
+the end. Double-clicking `main.exe` cannot pass the flag.
+
+From a command prompt, add `-v` (or `--verbose`) anywhere on the line:
 
 ```
-persyst_deidentify.exe -v
-persyst_deidentify.exe input.csv C:\output -v
+main.exe -v
+main.exe input.csv C:\output -v
 ```
 
 Verbose output goes to the screen **and** to `verbose.log` in the private
