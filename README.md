@@ -1,77 +1,64 @@
-# Persyst auto de-identifer
+# Persyst auto de-identifier
 
-This script will deidentify persyst files.
+Windows tool that drives Persyst Insight's `PSCLI.exe` to archive and
+de-identify EEG studies. It matches a Persyst database export against a
+user-supplied list of study codes and dates, converts the matching recordings,
+and writes public and private metadata CSVs.
 
-Run main.exe by double clicking.
+**Running the tool?** See [USER_GUIDE.md](USER_GUIDE.md) — that is the file to
+send to whoever operates it.
 
-## Assumptions
-Script assumes 
-- You have a copy of Persyst installed with a valid license.
-- Persyst is installed in the default location (C:\Program Files (x86)\Persyst\Insight)
-- PSCLI.exe is available in it's default location (C:\Program Files (x86)\Persyst\Insight). Should be part of default Persyst installation
-- Persyst database has the columns `Test Date	Duration	First Name	Last Name	Patient ID	File Name With Path	DOB` in that order as a Tab separated file
+## Requirements
 
-## Usage
+- Windows, with Persyst installed and licensed at
+  `C:\Program Files (x86)\Persyst\Insight` (provides `PSCLI.exe`)
+- Python 3 and `cx_Freeze` to build (`pip install -r requirements.txt`)
 
-- Ensure rows in Persyst database are in the order:`Test Date	Duration	First Name	Last Name	Patient ID	File Name With Path	DOB`
-- Copy Rows to clipboard from Persyst Database
-- Paste into a new file and save it. Do not make any edits to the copied file. Save this file as database.csv to your root C: drive
-- Double click the application
-- You will be promoted if you want to use the default location the database file is expected to be found: `C:\database.csv`. You can place it elsewhere if needed
-- You will be prompted for your input file. Enter its location eg C:\input.csv
-- The input csv expects you to have the 3 columns `study_code, patient_id, date_of_service`. Note: you don't need the column headers, just the data that matches those requirements in that order
-- The script will search for files from the date of service to 7 days after.
-- Enter in the ouput path you created from before: `c:\output`
-- Program will run and place output files in your output directory
-- Another directory with `_private` will also be generated. This directory should NOT be uploaded to Pennsieve. It contains logs from the conversion process which will have PII.
-- full-report.csv contains information about the files converted
-- Each sub folder also contains data about the files in that folder
-- Errors.csv will show any files which could not be converted
-- For EDF output set `output format` to 3 and `FileType` to EDF90 in `archive-template.xml`
-
-
-## Example of what database.csv should look like
+## Run from source
 
 ```
-Test Date	Duration	First Name	Last Name	Patient ID	File Name With Path	Active	Station DOB
-2023.10.21   14:36:50	4d:15:15:35	XXXXXXX	XXXXXX	########	\\natusprodnas.chop.edu\NatusProdArc\NeuroworksArc\dbdata\file.erd, 12/15/1986
-2023.02.12   11:01:00	00:26:17	XXXXX	XXXXX	########	\\natusprodnas.chop.edu\NatusProdArc\NeuroworksArc\dbdata\file.erd, 12/15/1986
-2023.01.01   04:34:35	00:01:18	XXXXX	XXXXXX	########	\\natusprodnas.chop.edu\NatusProdArc\NeuroworksArc\dbdata\file.erd, 12/15/1986
-2023.08.20   07:00:17	23:59:27	XXXXXX	XXXXXX	########	\\natusprodnas.chop.edu\NatusProdArc\NeuroworksArc\dbdata\file.erd, 12/15/1986
-2023.08.19   07:00:16	23:56:01	XXXXX	XXXXX	########	\\natusprodnas.chop.edu\NatusProdArc\NeuroworksArc\dbdata\file.erd, 12/15/1986
-2023.08.18   07:00:17	23:58:06	XXXXX	XXXXXX	########	\\natusprodnas.chop.edu\NatusProdArc\NeuroworksArc\dbdata\file.erd, 12/15/1986
+python main.py                                    # interactive prompts
+python main.py <input_csv> <output_dir> [db_csv] [-v]
 ```
 
-## Example of input.csv
+## Build and release
+
 ```
-a6sd5f14a,1234567,1/11/2020
-a35sd61f,7654321,02/09/2024
-654asdf,1234567,01/01/2020
-a51ds61fa,7654321,12/14/2022
-wd6hs3,1234567,03/15/2023
-684rth64strh,7654321,03/10/2023
-561a68fewa,1234567,06/01/2023
-a68148ew4,7654321,12/14/2023
+python setup.py build     # cx_Freeze; output in build\exe.win-amd64-3.x\
+python release.py         # clean build + verify bundled files + zip to dist\
 ```
+
+`release.py` is the one to use. It fails if `main.exe`,
+`archive-template.xml`, `verbose.bat`, or the icon is missing from the build —
+cx_Freeze omits files silently otherwise. Ship the whole folder or the zip.
+
+## Input formats
+
+**Database CSV** — tab separated, columns in this order:
+`Test Date`, `Duration`, `First Name`, `Last Name`, `Patient ID`,
+`File Name With Path`, `DOB`. Pasted straight out of Persyst, unedited.
+
+**Input CSV** — comma separated, no header:
+`study_code, patient_id, date_of_service`.
+
+Both are read as `utf-8-sig` so Excel's BOM does not corrupt the first field.
+
+## Output
+
+- `<output>\<study>\` — de-identified files plus `*_public.csv`
+- `<output>_private\` — `worklog.txt`, `verbose.log`, `errors.csv`,
+  `full-report-private.csv`, per-study `*_private.csv`. Contains PII; never
+  upload to Pennsieve.
 
 ## Verbose mode
 
-The easiest way: **double-click `verbose.bat`** in the same folder as
-`main.exe`. It runs the program with logging on and keeps the window open at
-the end. Double-clicking `main.exe` cannot pass the flag.
+Double-click `verbose.bat`, or pass `-v` / `--verbose` on the command line.
+Output goes to the screen **and** to `verbose.log` in the `_private` folder.
 
-From a command prompt, add `-v` (or `--verbose`) anywhere on the line:
+Per file it records: the resolved path, size, Windows attributes (EFS
+encryption, cloud-only/OneDrive placeholders), whether the file can actually be
+opened and read, the header in hex, the `.lay` companion data file, the exact
+PSCLI command, and PSCLI's exit code, stdout, and stderr.
 
-```
-main.exe -v
-main.exe input.csv C:\output -v
-```
-
-Verbose output goes to the screen **and** to `verbose.log` in the private
-output folder (`<output>_private\verbose.log`), alongside `worklog.txt`. Ask
-users to send that file when a conversion fails.
-
-It reports, per file: the resolved path, size, Windows attributes (EFS
-encryption, cloud-only/OneDrive placeholders), whether we can actually open and
-read the first bytes, the file header in hex, the `.lay` companion data file,
-the exact PSCLI command, and PSCLI's exit code, stdout, and stderr.
+This is the first thing to turn on when a user reports files that will not
+convert.

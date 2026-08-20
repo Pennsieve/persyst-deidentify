@@ -19,6 +19,12 @@ the icon, and `verbose.bat` copied alongside `main.exe`. Ship the whole folder.
 `verbose.bat` exists because a double-clicked exe cannot be given `-v`; it also
 `cd /d "%~dp0"` first, since the template is read from the current directory.
 
+`release.py` (or `/release`) is the real build entry point: clean build, assert
+the bundled files are present, zip to `dist/`. cx_Freeze drops missing
+`include_files` silently, which is what that check exists for.
+
+User-facing instructions live in `USER_GUIDE.md`; `README.md` is for us.
+
 There are no tests. `main()` is called at import time at the bottom of
 `main.py`, so importing the module runs the program — exec the parsed AST with
 the trailing call stripped if you need to test helpers.
